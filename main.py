@@ -90,19 +90,6 @@ def get_median(df, column):
     return df[column].median()
 
 
-def generateFile(nom_fichier, filename, content):
-    # Enregistrer les résultats dans un fichier CSV
-    extension = 'output'
-    nom_fichier_sortie = f'Output\\{nom_fichier}\\{nom_fichier}_{filename}_{extension}.csv'
-
-    isExist = os.path.exists(sys.path[0] + f'\\Output\\{nom_fichier}')
-    if not isExist:
-        os.makedirs(sys.path[0] + f'\\Output\\{nom_fichier}')
-
-    content.to_csv(sys.path[0] + f'\\{nom_fichier_sortie}', index=False)
-    print(f"Résultats enregistrés dans {nom_fichier_sortie}")
-
-
 if __name__ == "__main__":
     input_csv_path = sys.argv[1]
     read_csv(input_csv_path)
