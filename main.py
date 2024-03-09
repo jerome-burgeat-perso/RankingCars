@@ -8,6 +8,7 @@ all_columns = []
 diagrams = ["top 5", "worst 5", "pareto", "promethee i", "promethee ii", "electre iv", "electre is"]
 N = 10
 
+
 def read_csv(input_csv_path):
     df = pd.read_csv(input_csv_path, sep=",")
     draw_Diagram(df)
@@ -37,9 +38,25 @@ def read_user_column(df):
 
 
 def choose_Diagram():
-    print(f"Les diagrammes disponibles sont : {diagrams}")
-    print("Veuillez choisir un type de diagramme : ")
-    return input().lower()
+    print("Voici les colonnes disponibles : ")
+    for i, col in enumerate(diagrams):
+        print(f"{i + 1}. {col}")
+
+    print("Veuillez sélectionner une colonne par son nom ou son ID : ")
+    user_input = input()
+
+    try:
+        # Essayer de convertir l'entrée en entier (ID)
+        column_id = int(user_input)
+        if 1 <= column_id <= len(diagrams):
+            return diagrams[column_id - 1]
+    except ValueError:
+        # Si la conversion échoue, traiter l'entrée comme le nom de la colonne
+        if user_input in diagrams:
+            return user_input
+
+    print("Entrée invalide. Veuillez choisir une colonne valide.")
+    return choose_Diagram().lower()
 
 
 def draw_Diagram(df):
@@ -54,9 +71,9 @@ def draw_Diagram(df):
         elif diagram == diagrams[2]:
             pareto_frontier(df)
         elif diagram == diagrams[3]:
-            continue
+            promethee_i(df)
         elif diagram == diagrams[4]:
-            continue
+            promethee_ii(df)
         elif diagram == diagrams[5]:
             continue
         elif diagram == diagrams[6]:
@@ -66,8 +83,10 @@ def draw_Diagram(df):
                 print(f'{nameColumn}')
         else:
             print("Il faut choisir un diagramme pour déssiner.")
+            draw_Diagram(df)
         print("Continuer ? (n/y)")
         next = True if input() == "y" else False
+        plt.close()
 
 
 def pareto_dominance(row1, row2, objectives, maximize=[]):
@@ -82,19 +101,19 @@ def pareto_dominance(row1, row2, objectives, maximize=[]):
 
 
 def pareto_frontier(df):
-    objectives = ["Prix", "Conso_Moy", "Dis_Freinage", "Confort", "Acceleration", "Vitesse_Max", "Vol_Coffre"]
+    objectifs = ["Prix", "Conso_Moy", "Dis_Freinage", "Confort", "Acceleration", "Vitesse_Max", "Vol_Coffre"]
     dominated = set()
     pareto_front = []
 
     # Create subplots
-    num_columns = len(objectives)
+    num_columns = len(objectifs)
     fig, axes = plt.subplots(nrows=num_columns, ncols=1, figsize=(8, 2 * num_columns))
 
-    for i, obj in enumerate(objectives):
+    for i, obj in enumerate(objectifs):
         for j, row1 in df.iterrows():
             is_dominated = False
             for k, row2 in df.iterrows():
-                if j != k and pareto_dominance(row2, row1, objectives, maximize=["Vitesse_Max", "Vol_Coffre"]):
+                if j != k and pareto_dominance(row2, row1, objectifs, maximize=["Vitesse_Max", "Vol_Coffre"]):
                     is_dominated = True
                     dominated.add(k)  # Mark as dominated
                     break
@@ -115,8 +134,48 @@ def pareto_frontier(df):
     plt.tight_layout()
     plt.show()
 
-    print("Pareto Frontier:")
+    print("Pareto :")
     print(pareto_front_df)
+
+
+def preference_function(x, y, maximize=True):
+    # Maximiser ou minimiser
+    if maximize:
+        return x - y
+    else:
+        return y - x
+
+
+def promethee_i(df):
+    alternatives = df['Voiture'].tolist()
+    num_alternatives = len(alternatives)
+    preference_matrix = np.zeros((num_alternatives, num_alternatives))
+
+    # Calculate preference matrix
+    for i, j in combinations(range(num_alternatives), 2):
+        for col in ["Prix", "Conso_Moy", "Dis_Freinage", "Confort", "Acceleration"]:
+            preference_matrix[i, j] += preference_function(
+                df.iloc[i][col], df.iloc[j][col], maximize=False
+            )
+            preference_matrix[j, i] += preference_function(
+                df.iloc[j][col], df.iloc[i][col], maximize=False
+            )
+
+        for col in ["Vitesse_Max", "Vol_Coffre"]:
+            preference_matrix[i, j] += preference_function(
+                df.iloc[i][col], df.iloc[j][col], maximize=True
+            )
+            preference_matrix[j, i] += preference_function(
+                df.iloc[j][col], df.iloc[i][col], maximize=True
+            )
+
+    flux_total = preference_matrix.sum(axis=1)
+    classement = np.argsort(flux_total)[::-1]
+
+    result = pd.DataFrame(
+        {'Voiture': alternatives, 'Flux (flux positif - flux négatif)': flux_total, 'Classement': classement + 1})
+    print("Promethee I :")
+    print(result)
 
 
 def get_Top(df, column, index):
