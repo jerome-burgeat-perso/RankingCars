@@ -204,7 +204,7 @@ def promethee(df, has_weight):
 
     result = pd.DataFrame(
         {'Voiture': alternatives, 'Flux positif': flux_positif, 'Flux négatif': flux_negatif,
-         'Flux (flux positif - flux négatif)': flux, 'Classement': classement})
+         'Flux net': flux, 'Classement': classement})
 
     if has_weight:
         print("Promethee II :")
