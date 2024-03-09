@@ -185,25 +185,31 @@ def promethee(df, has_weight):
 
     for i, j in combinations(range(num_alternatives), 2):
         for col in minimize:
+            # Les colonnes à minimiser
             calculatePromethee(col, df, has_weight, i, j, poids, preference_matrix, False)
 
         for col in maximize:
+            # Les colonnes à maximiser
             calculatePromethee(col, df, has_weight, i, j, poids, preference_matrix, True)
 
-    # Calculate positive and negative outranking flows
-    print(preference_matrix)
+    # Flux positif et négatif
     flux_positif = preference_matrix.sum(axis=1)
     flux_negatif = preference_matrix.sum(axis=0)
 
-    # Calculate net outranking flow for each alternative
+    # Flux
     flux = flux_positif - flux_negatif
 
+    # Classement
     classement = np.argsort(flux)[::-1]
 
     result = pd.DataFrame(
         {'Voiture': alternatives, 'Flux positif': flux_positif, 'Flux négatif': flux_negatif,
          'Flux (flux positif - flux négatif)': flux, 'Classement': classement + 1})
-    print("Promethee I :")
+
+    if has_weight:
+        print("Promethee II :")
+    else:
+        print("Promethee I :")
     print(result)
 
 
