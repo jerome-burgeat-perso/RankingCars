@@ -200,11 +200,11 @@ def promethee(df, has_weight):
     flux = flux_positif - flux_negatif
 
     # Classement
-    classement = np.argsort(flux)[::-1]
+    classement = pd.Series(flux).rank(ascending=False).astype(int)
 
     result = pd.DataFrame(
         {'Voiture': alternatives, 'Flux positif': flux_positif, 'Flux négatif': flux_negatif,
-         'Flux (flux positif - flux négatif)': flux, 'Classement': classement + 1})
+         'Flux (flux positif - flux négatif)': flux, 'Classement': classement})
 
     if has_weight:
         print("Promethee II :")
