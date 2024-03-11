@@ -75,7 +75,7 @@ def draw_Diagram(df):
         elif diagram == diagrams[4]:
             promethee(df, True)
         elif diagram == diagrams[5]:
-            continue
+            electre(df, False)
         elif diagram == diagrams[6]:
             continue
         elif diagram == 'tab':
@@ -137,9 +137,22 @@ def pareto_frontier(df):
     print("Pareto :")
     print(pareto_front_df)
 
-
-def preference_function(x, y, value, maximize=True):
+def preference_functionPromethee(x, y, value, maximize=True):
     # Maximiser ou minimiser
+
+    if maximize:
+        if x > y:
+            return value
+    else:
+        if x < y:
+            return value
+    return 0
+
+
+def preference_functionElectre(x, y, value, maximize=True):
+    # Maximiser ou minimiser
+    if x == y:
+        return value
     if maximize:
         if x > y:
             return value
@@ -150,10 +163,18 @@ def preference_function(x, y, value, maximize=True):
 
 
 def calculatePromethee(col, df, i, j, poids, preference_matrix, maximize):
-    preference_matrix[i, j] += preference_function(
+    preference_matrix[i, j] += preference_functionPromethee(
         df.iloc[i][col], df.iloc[j][col], poids[col], maximize=maximize
     )
-    preference_matrix[j, i] += preference_function(
+    preference_matrix[j, i] += preference_functionPromethee(
+        df.iloc[j][col], df.iloc[i][col], poids[col], maximize=maximize
+    )
+
+def calculateElectre(col, df, i, j, poids, preference_matrix, maximize):
+    preference_matrix[i, j] += preference_functionElectre(
+        df.iloc[i][col], df.iloc[j][col], poids[col], maximize=maximize
+    )
+    preference_matrix[j, i] += preference_functionElectre(
         df.iloc[j][col], df.iloc[i][col], poids[col], maximize=maximize
     )
 
@@ -167,7 +188,7 @@ def get_weights():
     return poids
 
 
-def promethee(df, has_weight):
+def promethee(df, isPrometheeII):
     minimize = ["Prix", "Conso_Moy", "Dis_Freinage", "Confort", "Acceleration"]
     maximize = ["Vitesse_Max", "Vol_Coffre"]
     alternatives = df['Voiture'].tolist()
@@ -193,7 +214,7 @@ def promethee(df, has_weight):
     flux = flux_positif - flux_negatif
 
 
-    if has_weight:
+    if isPrometheeII:
         # Classement
         classement = pd.Series(flux).rank(ascending=False).astype(int)
         result = pd.DataFrame(
@@ -209,6 +230,38 @@ def promethee(df, has_weight):
             {'Voiture': alternatives, 'Flux positif': flux_positif, 'Classement Flux positif': classement_flux_positif, 'Flux négatif': flux_negatif
                 , 'Classement flux négatif': classement_flux_negatif})
         print("Promethee I :")
+
+    print(preference_matrix)
+    print(result)
+
+def electre(df, isElectreIS):
+    minimize = ["Prix", "Conso_Moy", "Dis_Freinage", "Confort", "Acceleration"]
+    maximize = ["Vitesse_Max", "Vol_Coffre"]
+    alternatives = df['Voiture'].tolist()
+    num_alternatives = len(alternatives)
+    preference_matrix = np.zeros((num_alternatives, num_alternatives))
+
+    poids = get_weights()
+
+    for i, j in combinations(range(num_alternatives), 2):
+        for col in minimize:
+            # Les colonnes à minimiser
+            calculateElectre(col, df, i, j, poids, preference_matrix, False)
+
+        for col in maximize:
+            # Les colonnes à maximiser
+            calculateElectre(col, df, i, j, poids, preference_matrix, True)
+
+    if isElectreIS:
+        # Classement
+        #classement = pd.Series(flux).rank(ascending=False).astype(int)
+        result = pd.DataFrame(
+            {'Voiture': alternatives})
+        print("Electre IS :")
+    else:
+        result = pd.DataFrame(
+            {'Voiture': alternatives})
+        print("Electre IV :")
 
     print(preference_matrix)
     print(result)
