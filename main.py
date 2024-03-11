@@ -138,36 +138,29 @@ def pareto_frontier(df):
     print(pareto_front_df)
 
 
-def preference_function(x, y, maximize=True):
+def preference_function(x, y, value, maximize=True):
     # Maximiser ou minimiser
-    if x == y:
-        return 0
-    elif maximize:
-        return x - y
+    if maximize:
+        if x > y:
+            return value
     else:
-        return y - x
+        if x < y:
+            return value
+    return 0
 
 
-def calculatePromethee(col, df, has_weight, i, j, poids, preference_matrix, maximize):
-    if has_weight:
-        preference_matrix[i, j] += poids[col] * preference_function(
-            df.iloc[i][col], df.iloc[j][col], maximize=maximize
-        )
-        preference_matrix[j, i] += poids[col] * preference_function(
-            df.iloc[j][col], df.iloc[i][col], maximize=maximize
-        )
-    else:
-        preference_matrix[i, j] += preference_function(
-            df.iloc[i][col], df.iloc[j][col], maximize=maximize
-        )
-        preference_matrix[j, i] += preference_function(
-            df.iloc[j][col], df.iloc[i][col], maximize=maximize
-        )
+def calculatePromethee(col, df, i, j, poids, preference_matrix, maximize):
+    preference_matrix[i, j] += preference_function(
+        df.iloc[i][col], df.iloc[j][col], poids[col], maximize=maximize
+    )
+    preference_matrix[j, i] += preference_function(
+        df.iloc[j][col], df.iloc[i][col], poids[col], maximize=maximize
+    )
 
 
 def get_weights():
-    poids = {"Prix": 0.00, "Vitesse_Max": 0.09, "Conso_Moy": 0.1, "Dis_Freinage": 0.05, "Confort": 1,
-             "Vol_Coffre": 0.2, "Acceleration": 0.00}
+    poids = {"Prix": 0.1, "Vitesse_Max": 0.09, "Conso_Moy": 0.1, "Dis_Freinage": 0.5, "Confort": 0.1,
+             "Vol_Coffre": 0.1, "Acceleration": 0.01}
     # for col in ["Prix", "Vitesse_Max", "Conso_Moy", "Dis_Freinage", "Confort", "Vol_Coffre", "Acceleration"]:
     #     weight = float(input(f"Enter weight for {col}: "))
     #     weights[col] = weight
@@ -186,11 +179,11 @@ def promethee(df, has_weight):
     for i, j in combinations(range(num_alternatives), 2):
         for col in minimize:
             # Les colonnes à minimiser
-            calculatePromethee(col, df, has_weight, i, j, poids, preference_matrix, False)
+            calculatePromethee(col, df, i, j, poids, preference_matrix, False)
 
         for col in maximize:
             # Les colonnes à maximiser
-            calculatePromethee(col, df, has_weight, i, j, poids, preference_matrix, True)
+            calculatePromethee(col, df, i, j, poids, preference_matrix, True)
 
     # Flux positif et négatif
     flux_positif = preference_matrix.sum(axis=1)
@@ -199,17 +192,25 @@ def promethee(df, has_weight):
     # Flux
     flux = flux_positif - flux_negatif
 
-    # Classement
-    classement = pd.Series(flux).rank(ascending=False).astype(int)
-
-    result = pd.DataFrame(
-        {'Voiture': alternatives, 'Flux positif': flux_positif, 'Flux négatif': flux_negatif,
-         'Flux net': flux, 'Classement': classement})
 
     if has_weight:
+        # Classement
+        classement = pd.Series(flux).rank(ascending=False).astype(int)
+        result = pd.DataFrame(
+            {'Voiture': alternatives, 'Flux positif': flux_positif, 'Flux négatif': flux_negatif,
+             'Flux net': flux, 'Classement': classement})
         print("Promethee II :")
     else:
+        # Classement Positif
+        classement_flux_positif = pd.Series(flux_positif).rank(ascending=False).astype(int)
+        # Classement Négatif
+        classement_flux_negatif = pd.Series(flux_negatif).rank(ascending=True).astype(int)
+        result = pd.DataFrame(
+            {'Voiture': alternatives, 'Flux positif': flux_positif, 'Classement Flux positif': classement_flux_positif, 'Flux négatif': flux_negatif
+                , 'Classement flux négatif': classement_flux_negatif})
         print("Promethee I :")
+
+    print(preference_matrix)
     print(result)
 
 
