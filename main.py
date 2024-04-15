@@ -3,10 +3,11 @@ import numpy as np
 import sys
 import matplotlib.pyplot as plt
 from itertools import combinations
+import networkx as nx
 
 all_columns = []
-diagrams = ["top 5", "worst 5", "pareto", "promethee i", "promethee ii", "electre iv", "electre is"]
 N = 10
+diagrams = [f"top {N}", f"worst {N}", "pareto", "promethee i", "promethee ii", "electre iv", "electre is"]
 
 
 def read_csv(input_csv_path):
@@ -135,6 +136,7 @@ def pareto_frontier(df):
     print("Pareto :")
     print(pareto_front_df)
 
+
 def preference_functionPromethee(x, y, value, maximize=True):
     # Maximiser ou minimiser
 
@@ -148,7 +150,6 @@ def preference_functionPromethee(x, y, value, maximize=True):
 
 
 def preference_functionElectre(x, y, value, maximize=True):
-    # Maximiser ou minimiser
     if x == y:
         return value
     if maximize:
@@ -168,12 +169,32 @@ def calculatePromethee(col, df, i, j, poids, preference_matrix, maximize):
         df.iloc[j][col], df.iloc[i][col], poids[col], maximize=maximize
     )
 
+
 def calculateElectre(col, df, i, j, poids, preference_matrix, maximize):
     preference_matrix[i, j] += preference_functionElectre(
         df.iloc[i][col], df.iloc[j][col], poids[col], maximize=maximize
     )
     preference_matrix[j, i] += preference_functionElectre(
         df.iloc[j][col], df.iloc[i][col], poids[col], maximize=maximize
+    )
+
+
+def veto_function(x, y, seuil_veto, maximize=True):
+    if maximize:
+        if y - x > seuil_veto:
+            return 0
+    else:
+        if x - y > seuil_veto:
+            return 0
+    return 1
+
+
+def calculateVeto(col, df, i, j, seuils_veto, non_discordance_matrix, maximize):
+    non_discordance_matrix[i, j] *= veto_function(
+        df.iloc[i][col], df.iloc[j][col], seuils_veto[col], maximize=maximize
+    )
+    non_discordance_matrix[j, i] *= veto_function(
+        df.iloc[j][col], df.iloc[i][col], seuils_veto[col], maximize=maximize
     )
 
 
@@ -192,6 +213,19 @@ def get_weights():
     #     weight = float(input(f"Enter weight for {col}: "))
     #     weights[col] = weight
     return poids
+
+
+def get_vetos():
+    # Définir vos seuils de veto pour chaque critère
+    # vetos = {"Prix": 5000, "Vitesse_Max": 50, "Conso_Moy": 2, "Dis_Freinage": 5, "Confort": 2,
+    #          "Vol_Coffre": 100, "Acceleration": 3}
+    vetos = {"Prix": 6000, "Vitesse_Max": 75, "Conso_Moy": 1.3, "Dis_Freinage": 2.5, "Confort": 3,
+             "Vol_Coffre": 50, "Acceleration": 2}
+    # Decommenter le code pour un profil different
+    # for col in ["Prix", "Vitesse_Max", "Conso_Moy", "Dis_Freinage", "Confort", "Vol_Coffre", "Acceleration"]:
+    #     veto = float(input(f"Enter weight for {col}: "))
+    #     vetos[col] = veto
+    return vetos
 
 
 def promethee(df, isPrometheeII):
@@ -219,7 +253,6 @@ def promethee(df, isPrometheeII):
     # Flux
     flux = flux_positif - flux_negatif
 
-
     if isPrometheeII:
         # Classement
         classement = pd.Series(flux).rank(ascending=False).astype(int)
@@ -233,34 +266,49 @@ def promethee(df, isPrometheeII):
         # Classement Négatif
         classement_flux_negatif = pd.Series(flux_negatif).rank(ascending=True).astype(int)
         result = pd.DataFrame(
-            {'Voiture': alternatives, 'Flux positif': flux_positif, 'Classement Flux positif': classement_flux_positif, 'Flux négatif': flux_negatif
+            {'Voiture': alternatives, 'Flux positif': flux_positif, 'Classement Flux positif': classement_flux_positif,
+             'Flux négatif': flux_negatif
                 , 'Classement flux négatif': classement_flux_negatif})
         print("Promethee I :")
 
     print(preference_matrix)
     print(result)
+    generateGraphe(result)
+
 
 def electre(df, isElectreIS):
     minimize = ["Prix", "Conso_Moy", "Dis_Freinage", "Confort", "Acceleration"]
     maximize = ["Vitesse_Max", "Vol_Coffre"]
     alternatives = df['Voiture'].tolist()
     num_alternatives = len(alternatives)
-    preference_matrix = np.zeros((num_alternatives, num_alternatives))
+    concordance_matrix = np.zeros((num_alternatives, num_alternatives))
+    non_discordance_matrix = np.ones((num_alternatives, num_alternatives))  # On commence avec une matrice pleine de 1
 
     poids = get_weights()
+    seuils_veto = get_vetos()
 
     for i, j in combinations(range(num_alternatives), 2):
         for col in minimize:
-            # Les colonnes à minimiser
-            calculateElectre(col, df, i, j, poids, preference_matrix, False)
+            calculateElectre(col, df, i, j, poids, concordance_matrix, False)
+            calculateVeto(col, df, i, j, seuils_veto, non_discordance_matrix, False)
 
         for col in maximize:
-            # Les colonnes à maximiser
-            calculateElectre(col, df, i, j, poids, preference_matrix, True)
+            calculateElectre(col, df, i, j, poids, concordance_matrix, True)
+            calculateVeto(col, df, i, j, seuils_veto, non_discordance_matrix, True)
+
+        # for col in df.columns:
+        #     if col not in ['Voiture']:  # Ignorer la colonne 'Voiture'
+        #         is_maximize = col in maximize
+        #         diff = df.iloc[i][col] - df.iloc[j][col] if is_maximize else df.iloc[j][col] - df.iloc[i][col]
+        #         concordance_matrix[i, j] += poids[col] if (is_maximize and diff > 0) or (not is_maximize and diff < 0) else 0
+        #         non_discordance_matrix[i, j] *= 0 if abs(diff) > seuils_veto[col] else 1
+
+    for i in range(0, num_alternatives):
+        non_discordance_matrix[i, i] *= 0
 
     if isElectreIS:
         # Classement
-        #classement = pd.Series(flux).rank(ascending=False).astype(int)
+        # classement = pd.Series(flux).rank(ascending=False).astype(int)
         result = pd.DataFrame(
             {'Voiture': alternatives})
         print("Electre IS :")
@@ -269,8 +317,33 @@ def electre(df, isElectreIS):
             {'Voiture': alternatives})
         print("Electre IV :")
 
-    print(preference_matrix)
+    print("Matrice de préférence :")
+    print(concordance_matrix)
+    print("Tableau de veto :")
+    print(non_discordance_matrix)
     print(result)
+
+
+def generateGraphe(df):
+    # Initialiser le graphe
+    G = nx.DiGraph()
+
+    for voiture in df['Voiture']:
+        G.add_node(voiture)
+
+    # Connecter les nœuds seulement si une voiture domine une autre dans les deux classements
+    for i, row1 in df.iterrows():
+        for j, row2 in df.iterrows():
+            if row1['Classement Flux positif'] < row2['Classement Flux positif'] and row1['Classement flux négatif'] < \
+                    row2['Classement flux négatif']:
+                G.add_edge(row1['Voiture'], row2['Voiture'])
+
+    # Dessiner le graphe d'ordre partiel
+    plt.figure(figsize=(12, 8))
+    nx.draw(G, with_labels=True, node_color='lightblue', node_size=3000, edge_color='darkblue', linewidths=1,
+            font_size=12, arrowsize=20)
+    plt.title("Partial Order Graph based on Positive and Negative Flows Rankings")
+    plt.show()
 
 
 def get_Top(df, column, top):
