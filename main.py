@@ -77,7 +77,7 @@ def draw_Diagram(df):
         elif diagram == diagrams[5]:
             electre(df, False)
         elif diagram == diagrams[6]:
-            continue
+            electre(df, True)
         elif diagram == 'tab':
             for nameColumn in df.columns:
                 print(f'{nameColumn}')
@@ -90,7 +90,6 @@ def draw_Diagram(df):
 
 
 def pareto_dominance(row1, row2, objectives, maximize=[]):
-    # Check if row1 dominates row2 in terms of objectives
     better_in_any = False
     for obj in objectives:
         if obj in maximize:
@@ -105,7 +104,6 @@ def pareto_frontier(df):
     dominated = set()
     pareto_front = []
 
-    # Create subplots
     num_columns = len(objectifs)
     fig, axes = plt.subplots(nrows=num_columns, ncols=1, figsize=(8, 2 * num_columns))
 
@@ -180,8 +178,16 @@ def calculateElectre(col, df, i, j, poids, preference_matrix, maximize):
 
 
 def get_weights():
-    poids = {"Prix": 0.1, "Vitesse_Max": 0.09, "Conso_Moy": 0.1, "Dis_Freinage": 0.5, "Confort": 0.1,
-             "Vol_Coffre": 0.1, "Acceleration": 0.01}
+    # poids = {"Prix": 0.1, "Vitesse_Max": 0.009, "Conso_Moy": 0.1, "Dis_Freinage": 0.5, "Confort": 0.2,
+    #          "Vol_Coffre": 0.09, "Acceleration": 0.001} # Personne prudente
+    # poids = {"Prix": 0.6, "Vitesse_Max": 0.063, "Conso_Moy": 0.2, "Dis_Freinage": 0.01, "Confort": 0.001,
+    #          "Vol_Coffre": 0.063, "Acceleration": 0.063} # Etudiant peu riche
+    # poids = {"Prix": 0.0125, "Vitesse_Max": 0.4, "Conso_Moy": 0.0125, "Dis_Freinage": 0.0125, "Confort": 0.2,
+    #          "Vol_Coffre": 0.0125, "Acceleration": 0.35} # riche
+    poids = {"Prix": 0.1, "Vitesse_Max": 0.02, "Conso_Moy": 0.08, "Dis_Freinage": 0.08, "Confort": 0.4,
+             "Vol_Coffre": 0.3, "Acceleration": 0.02}  # familial
+
+    # Decommenter le code pour un profil different
     # for col in ["Prix", "Vitesse_Max", "Conso_Moy", "Dis_Freinage", "Confort", "Vol_Coffre", "Acceleration"]:
     #     weight = float(input(f"Enter weight for {col}: "))
     #     weights[col] = weight
@@ -267,13 +273,21 @@ def electre(df, isElectreIS):
     print(result)
 
 
-def get_Top(df, column, index):
-    top = df.nlargest(n=N, columns=[column]) if index else df.nsmallest(n=N, columns=[column])
-    y = top[column].to_list()
-    plt.barh(top['Voiture'], y)
-    table = pd.DataFrame(data=top.values, columns=all_columns)
-    print(table)
+def get_Top(df, column, top):
+    if top:
+        data = df.nlargest(N, column)
+        plt.title(f'Top {N} pour les valeurs de la colonne {column}')
+    else:
+        data = df.nsmallest(N, column)
+        plt.title(f'Bottom {N} pour les valeurs de la colonne {column}')
+
+    plt.barh(data['Voiture'][::-1], data[column][::-1])
+    for index, value in enumerate(data[column][::-1]):
+        plt.text(value, index, f' {value:.2f}', va='center', color='black')
+
+    plt.tight_layout()
     plt.show()
+    print(data)
 
 
 def get_Min_Value(df, column):
