@@ -198,6 +198,11 @@ def calculateVeto(col, df, i, j, seuils_veto, non_discordance_matrix, maximize):
     )
 
 
+def calculConcordanceMatrix(i, j, concordance_matrix, non_discordance_matrix, seuil):
+    concordance_matrix[i, j] = concordance_matrix[i, j] if non_discordance_matrix[i, j] == 1 and concordance_matrix[i, j] >= seuil else 0
+    concordance_matrix[j, i] = concordance_matrix[j, i] if non_discordance_matrix[j, i] == 1 and concordance_matrix[j, i] >= seuil else 0
+
+
 def get_weights():
     # poids = {"Prix": 0.1, "Vitesse_Max": 0.009, "Conso_Moy": 0.1, "Dis_Freinage": 0.5, "Confort": 0.2,
     #          "Vol_Coffre": 0.09, "Acceleration": 0.001} # Personne prudente
@@ -217,10 +222,10 @@ def get_weights():
 
 def get_vetos():
     # Définir vos seuils de veto pour chaque critère
-    # vetos = {"Prix": 5000, "Vitesse_Max": 50, "Conso_Moy": 2, "Dis_Freinage": 5, "Confort": 2,
-    #          "Vol_Coffre": 100, "Acceleration": 3}
-    vetos = {"Prix": 6000, "Vitesse_Max": 75, "Conso_Moy": 1.3, "Dis_Freinage": 2.5, "Confort": 3,
-             "Vol_Coffre": 50, "Acceleration": 2}
+    vetos = {"Prix": 5000, "Vitesse_Max": 50, "Conso_Moy": 2, "Dis_Freinage": 5, "Confort": 2,
+             "Vol_Coffre": 100, "Acceleration": 3}
+    # vetos = {"Prix": 6000, "Vitesse_Max": 75, "Conso_Moy": 1.3, "Dis_Freinage": 2.5, "Confort": 3,
+    #          "Vol_Coffre": 50, "Acceleration": 2}
     # Decommenter le code pour un profil different
     # for col in ["Prix", "Vitesse_Max", "Conso_Moy", "Dis_Freinage", "Confort", "Vol_Coffre", "Acceleration"]:
     #     veto = float(input(f"Enter weight for {col}: "))
@@ -282,7 +287,7 @@ def electre(df, isElectreIS):
     alternatives = df['Voiture'].tolist()
     num_alternatives = len(alternatives)
     concordance_matrix = np.zeros((num_alternatives, num_alternatives))
-    non_discordance_matrix = np.ones((num_alternatives, num_alternatives))  # On commence avec une matrice pleine de 1
+    non_discordance_matrix = np.ones((num_alternatives, num_alternatives))
 
     poids = get_weights()
     seuils_veto = get_vetos()
@@ -296,15 +301,14 @@ def electre(df, isElectreIS):
             calculateElectre(col, df, i, j, poids, concordance_matrix, True)
             calculateVeto(col, df, i, j, seuils_veto, non_discordance_matrix, True)
 
-        # for col in df.columns:
-        #     if col not in ['Voiture']:  # Ignorer la colonne 'Voiture'
-        #         is_maximize = col in maximize
-        #         diff = df.iloc[i][col] - df.iloc[j][col] if is_maximize else df.iloc[j][col] - df.iloc[i][col]
-        #         concordance_matrix[i, j] += poids[col] if (is_maximize and diff > 0) or (not is_maximize and diff < 0) else 0
-        #         non_discordance_matrix[i, j] *= 0 if abs(diff) > seuils_veto[col] else 1
-
     for i in range(0, num_alternatives):
         non_discordance_matrix[i, i] *= 0
+
+    print("Matrice de préférence :")
+    print(concordance_matrix)
+
+    for i, j in combinations(range(num_alternatives), 2):
+        calculConcordanceMatrix(i, j, concordance_matrix, non_discordance_matrix, 0.75)
 
     if isElectreIS:
         # Classement
@@ -317,21 +321,20 @@ def electre(df, isElectreIS):
             {'Voiture': alternatives})
         print("Electre IV :")
 
-    print("Matrice de préférence :")
-    print(concordance_matrix)
+
     print("Tableau de veto :")
     print(non_discordance_matrix)
+    print("Matrice de préférence :")
+    print(concordance_matrix)
     print(result)
 
 
 def generateGraphe(df):
-    # Initialiser le graphe
     G = nx.DiGraph()
 
     for voiture in df['Voiture']:
         G.add_node(voiture)
 
-    # Connecter les nœuds seulement si une voiture domine une autre dans les deux classements
     for i, row1 in df.iterrows():
         for j, row2 in df.iterrows():
             if row1['Classement Flux positif'] < row2['Classement Flux positif'] and row1['Classement flux négatif'] < \
