@@ -63,8 +63,9 @@ def choose_Diagram():
 def draw_Diagram(df):
     next = True
     while next:
-        column = read_user_column(df)
         diagram = choose_Diagram()
+        if diagram in [diagrams[0], diagrams[1]]:
+            column = read_user_column(df)
         if diagram == diagrams[0]:
             get_Top(df, column, True)
         elif diagram == diagrams[1]:
@@ -232,9 +233,9 @@ def get_weights():
     #          "Vol_Coffre": 0.063, "Acceleration": 0.063} # Etudiant peu riche
     # poids = {"Prix": 0.0125, "Vitesse_Max": 0.4, "Conso_Moy": 0.0125, "Dis_Freinage": 0.0125, "Confort": 0.2,
     #          "Vol_Coffre": 0.0125, "Acceleration": 0.35} # riche
-    # poids = {"Prix": 0.1, "Vitesse_Max": 0.02, "Conso_Moy": 0.08, "Dis_Freinage": 0.08, "Confort": 0.4,
-    #          "Vol_Coffre": 0.3, "Acceleration": 0.02}  # familial
-    poids = {"C1": 0.1, "C2": 0.2, "C3": 0.2, "C4": 0.1, "C5": 0.2, "C6": 0.2}
+    poids = {"Prix": 0.1, "Vitesse_Max": 0.02, "Conso_Moy": 0.08, "Dis_Freinage": 0.08, "Confort": 0.4,
+             "Vol_Coffre": 0.3, "Acceleration": 0.02}  # familial
+    # poids = {"C1": 0.1, "C2": 0.2, "C3": 0.2, "C4": 0.1, "C5": 0.2, "C6": 0.2}
     # Decommenter le code pour un profil different
     # for col in ["Prix", "Vitesse_Max", "Conso_Moy", "Dis_Freinage", "Confort", "Vol_Coffre", "Acceleration"]:
     #     weight = float(input(f"Enter weight for {col}: "))
@@ -244,9 +245,9 @@ def get_weights():
 
 def get_vetos():
     # Définir vos seuils de veto pour chaque critère
-    # vetos = {"Prix": 5000, "Vitesse_Max": 50, "Conso_Moy": 2, "Dis_Freinage": 5, "Confort": 2,
-    #          "Vol_Coffre": 100, "Acceleration": 3}
-    vetos = {"C1": 45, "C2": 29, "C3": 550, "C4": 6, "C5": 4.5, "C6": 4.5}
+    vetos = {"Prix": 5000, "Vitesse_Max": 50, "Conso_Moy": 2, "Dis_Freinage": 5, "Confort": 2,
+             "Vol_Coffre": 100, "Acceleration": 3}
+    # vetos = {"C1": 45, "C2": 29, "C3": 550, "C4": 6, "C5": 4.5, "C6": 4.5}
     # vetos = {"Prix": 6000, "Vitesse_Max": 75, "Conso_Moy": 1.3, "Dis_Freinage": 2.5, "Confort": 3,
     #          "Vol_Coffre": 50, "Acceleration": 2}
     # Decommenter le code pour un profil different
@@ -265,12 +266,12 @@ def get_thresholds():
 
 
 def promethee(df, isPrometheeII):
-    # minimize = ["Prix", "Conso_Moy", "Dis_Freinage", "Confort", "Acceleration"]
-    # maximize = ["Vitesse_Max", "Vol_Coffre"]
-    # alternatives = df['Voiture'].tolist()
-    minimize = ["C1", "C3", "C4", "C5"]
-    maximize = ["C2", "C6"]
-    alternatives = df['C0'].tolist()
+    minimize = ["Prix", "Conso_Moy", "Dis_Freinage", "Confort", "Acceleration"]
+    maximize = ["Vitesse_Max", "Vol_Coffre"]
+    alternatives = df['Voiture'].tolist()
+    # minimize = ["C1", "C3", "C4", "C5"]
+    # maximize = ["C2", "C6"]
+    # alternatives = df['C0'].tolist()
     num_alternatives = len(alternatives)
     preference_matrix = np.zeros((num_alternatives, num_alternatives))
 
@@ -296,7 +297,7 @@ def promethee(df, isPrometheeII):
         # Classement
         classement = pd.Series(flux).rank(ascending=False).astype(int)
         result = pd.DataFrame(
-            {'C0': alternatives, 'Flux positif': flux_positif, 'Flux négatif': flux_negatif,
+            {'Voiture': alternatives, 'Flux positif': flux_positif, 'Flux négatif': flux_negatif,
              'Flux net': flux, 'Classement': classement})
         print("Promethee II :")
     else:
@@ -305,7 +306,7 @@ def promethee(df, isPrometheeII):
         # Classement Négatif
         classement_flux_negatif = pd.Series(flux_negatif).rank(ascending=True).astype(int)
         result = pd.DataFrame(
-            {'C0': alternatives, 'Flux positif': flux_positif, 'Classement Flux positif': classement_flux_positif,
+            {'Voiture': alternatives, 'Flux positif': flux_positif, 'Classement Flux positif': classement_flux_positif,
              'Flux négatif': flux_negatif
                 , 'Classement flux négatif': classement_flux_negatif})
         print("Promethee I :")
@@ -316,12 +317,12 @@ def promethee(df, isPrometheeII):
 
 
 def electre(df, isElectreIS):
-    # minimize = ["Prix", "Conso_Moy", "Dis_Freinage", "Confort", "Acceleration"]
-    # maximize = ["Vitesse_Max", "Vol_Coffre"]
-    # alternatives = df['Voiture'].tolist()
-    minimize = ["C1", "C3", "C4", "C5"]
-    maximize = ["C2", "C6"]
-    alternatives = df['C0'].tolist()
+    minimize = ["Prix", "Conso_Moy", "Dis_Freinage", "Confort", "Acceleration"]
+    maximize = ["Vitesse_Max", "Vol_Coffre"]
+    alternatives = df['Voiture'].tolist()
+    # minimize = ["C1", "C3", "C4", "C5"]
+    # maximize = ["C2", "C6"]
+    # alternatives = df['C0'].tolist()
     num_alternatives = len(alternatives)
     concordance_matrix = np.zeros((num_alternatives, num_alternatives))
     non_discordance_matrix = np.ones((num_alternatives, num_alternatives))
