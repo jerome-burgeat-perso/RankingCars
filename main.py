@@ -64,15 +64,15 @@ def draw_Diagram(df):
     next = True
     while next:
         diagram = choose_Diagram()
-        if diagram in [diagrams[0], diagrams[1]]:
+        if diagram in [diagrams[0], diagrams[1], diagrams[2]]:
             column = read_user_column(df)
-        if diagram == diagrams[0]:
-            get_Top(df, column, True)
-        elif diagram == diagrams[1]:
-            get_Top(df, column, False)
-        elif diagram == diagrams[2]:
-            pareto_frontier(df)
-        elif diagram == diagrams[3]:
+            if diagram == diagrams[0]:
+                get_Top(df, column, True)
+            elif diagram == diagrams[1]:
+                get_Top(df, column, False)
+            elif diagram == diagrams[2]:
+                pareto_frontier(df)
+        if diagram == diagrams[3]:
             promethee(df, False)
         elif diagram == diagrams[4]:
             promethee(df, True)
