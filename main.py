@@ -150,14 +150,25 @@ def preference_functionPromethee(x, y, value, maximize=True):
 
 
 def preference_functionElectre(x, y, value, maximize=True):
-    if x == y:
-        return value
     if maximize:
-        if x > y:
+        if x >= y:
             return value
     else:
-        if x < y:
+        if x <= y:
             return value
+    return 0
+
+def preference_functionElectreIs(x, y, value, threshold, maximize=True):
+    if maximize:
+        if x >= y:
+            return value
+        elif x - y > -threshold:
+            return value * (1 - abs(x - y)/threshold)
+    else:
+        if x <= y:
+            return value
+        elif y - x > -threshold:
+            return value * (1 - abs(x - y)/threshold)
     return 0
 
 
@@ -176,6 +187,17 @@ def calculateElectre(col, df, i, j, poids, preference_matrix, maximize):
     )
     preference_matrix[j, i] += preference_functionElectre(
         df.iloc[j][col], df.iloc[i][col], poids[col], maximize=maximize
+    )
+
+
+def calculateElectreIS(col, df, i, j, poids, thresholds, concordance_matrix, maximize):
+    threshold = thresholds.get(col, 0)
+    print(col , i , j)
+    concordance_matrix[i, j] += preference_functionElectreIs(
+        df.iloc[i][col], df.iloc[j][col], poids[col], threshold, maximize=maximize
+    )
+    concordance_matrix[j, i] += preference_functionElectreIs(
+        df.iloc[j][col], df.iloc[i][col], poids[col], threshold, maximize=maximize
     )
 
 
@@ -210,9 +232,9 @@ def get_weights():
     #          "Vol_Coffre": 0.063, "Acceleration": 0.063} # Etudiant peu riche
     # poids = {"Prix": 0.0125, "Vitesse_Max": 0.4, "Conso_Moy": 0.0125, "Dis_Freinage": 0.0125, "Confort": 0.2,
     #          "Vol_Coffre": 0.0125, "Acceleration": 0.35} # riche
-    poids = {"Prix": 0.1, "Vitesse_Max": 0.02, "Conso_Moy": 0.08, "Dis_Freinage": 0.08, "Confort": 0.4,
-             "Vol_Coffre": 0.3, "Acceleration": 0.02}  # familial
-
+    # poids = {"Prix": 0.1, "Vitesse_Max": 0.02, "Conso_Moy": 0.08, "Dis_Freinage": 0.08, "Confort": 0.4,
+    #          "Vol_Coffre": 0.3, "Acceleration": 0.02}  # familial
+    poids = {"C1": 0.1, "C2": 0.2, "C3": 0.2, "C4": 0.1, "C5": 0.2, "C6": 0.2}
     # Decommenter le code pour un profil different
     # for col in ["Prix", "Vitesse_Max", "Conso_Moy", "Dis_Freinage", "Confort", "Vol_Coffre", "Acceleration"]:
     #     weight = float(input(f"Enter weight for {col}: "))
@@ -222,8 +244,9 @@ def get_weights():
 
 def get_vetos():
     # Définir vos seuils de veto pour chaque critère
-    vetos = {"Prix": 5000, "Vitesse_Max": 50, "Conso_Moy": 2, "Dis_Freinage": 5, "Confort": 2,
-             "Vol_Coffre": 100, "Acceleration": 3}
+    # vetos = {"Prix": 5000, "Vitesse_Max": 50, "Conso_Moy": 2, "Dis_Freinage": 5, "Confort": 2,
+    #          "Vol_Coffre": 100, "Acceleration": 3}
+    vetos = {"C1": 45, "C2": 29, "C3": 550, "C4": 6, "C5": 4.5, "C6": 4.5}
     # vetos = {"Prix": 6000, "Vitesse_Max": 75, "Conso_Moy": 1.3, "Dis_Freinage": 2.5, "Confort": 3,
     #          "Vol_Coffre": 50, "Acceleration": 2}
     # Decommenter le code pour un profil different
@@ -232,11 +255,22 @@ def get_vetos():
     #     vetos[col] = veto
     return vetos
 
+def get_thresholds():
+    thresholds = {"C1": 20, "C2": 10, "C3": 200, "C4": 4, "C5": 2, "C6": 2}
+    # Decommenter le code pour un profil different
+    # for col in ["Prix", "Vitesse_Max", "Conso_Moy", "Dis_Freinage", "Confort", "Vol_Coffre", "Acceleration"]:
+    #     threshold = float(input(f"Enter weight for {col}: "))
+    #     thresholds[col] = threshold
+    return thresholds
+
 
 def promethee(df, isPrometheeII):
-    minimize = ["Prix", "Conso_Moy", "Dis_Freinage", "Confort", "Acceleration"]
-    maximize = ["Vitesse_Max", "Vol_Coffre"]
-    alternatives = df['Voiture'].tolist()
+    # minimize = ["Prix", "Conso_Moy", "Dis_Freinage", "Confort", "Acceleration"]
+    # maximize = ["Vitesse_Max", "Vol_Coffre"]
+    # alternatives = df['Voiture'].tolist()
+    minimize = ["C1", "C3", "C4", "C5"]
+    maximize = ["C2", "C6"]
+    alternatives = df['C0'].tolist()
     num_alternatives = len(alternatives)
     preference_matrix = np.zeros((num_alternatives, num_alternatives))
 
@@ -262,7 +296,7 @@ def promethee(df, isPrometheeII):
         # Classement
         classement = pd.Series(flux).rank(ascending=False).astype(int)
         result = pd.DataFrame(
-            {'Voiture': alternatives, 'Flux positif': flux_positif, 'Flux négatif': flux_negatif,
+            {'C0': alternatives, 'Flux positif': flux_positif, 'Flux négatif': flux_negatif,
              'Flux net': flux, 'Classement': classement})
         print("Promethee II :")
     else:
@@ -271,20 +305,23 @@ def promethee(df, isPrometheeII):
         # Classement Négatif
         classement_flux_negatif = pd.Series(flux_negatif).rank(ascending=True).astype(int)
         result = pd.DataFrame(
-            {'Voiture': alternatives, 'Flux positif': flux_positif, 'Classement Flux positif': classement_flux_positif,
+            {'C0': alternatives, 'Flux positif': flux_positif, 'Classement Flux positif': classement_flux_positif,
              'Flux négatif': flux_negatif
                 , 'Classement flux négatif': classement_flux_negatif})
         print("Promethee I :")
 
     print(preference_matrix)
     print(result)
-    generateGraphe(result)
+    # generateGraphe(result)
 
 
 def electre(df, isElectreIS):
-    minimize = ["Prix", "Conso_Moy", "Dis_Freinage", "Confort", "Acceleration"]
-    maximize = ["Vitesse_Max", "Vol_Coffre"]
-    alternatives = df['Voiture'].tolist()
+    # minimize = ["Prix", "Conso_Moy", "Dis_Freinage", "Confort", "Acceleration"]
+    # maximize = ["Vitesse_Max", "Vol_Coffre"]
+    # alternatives = df['Voiture'].tolist()
+    minimize = ["C1", "C3", "C4", "C5"]
+    maximize = ["C2", "C6"]
+    alternatives = df['C0'].tolist()
     num_alternatives = len(alternatives)
     concordance_matrix = np.zeros((num_alternatives, num_alternatives))
     non_discordance_matrix = np.ones((num_alternatives, num_alternatives))
@@ -292,13 +329,22 @@ def electre(df, isElectreIS):
     poids = get_weights()
     seuils_veto = get_vetos()
 
+    if isElectreIS:
+        thresholds = get_thresholds()
+
     for i, j in combinations(range(num_alternatives), 2):
         for col in minimize:
-            calculateElectre(col, df, i, j, poids, concordance_matrix, False)
+            if not isElectreIS:
+                calculateElectre(col, df, i, j, poids, concordance_matrix, False)
+            else:
+                calculateElectreIS(col, df, i, j, poids, thresholds, concordance_matrix, False)
             calculateVeto(col, df, i, j, seuils_veto, non_discordance_matrix, False)
 
         for col in maximize:
-            calculateElectre(col, df, i, j, poids, concordance_matrix, True)
+            if not isElectreIS:
+                calculateElectre(col, df, i, j, poids, concordance_matrix, True)
+            else:
+                calculateElectreIS(col, df, i, j, poids, thresholds, concordance_matrix, True)
             calculateVeto(col, df, i, j, seuils_veto, non_discordance_matrix, True)
 
     for i in range(0, num_alternatives):
@@ -308,7 +354,7 @@ def electre(df, isElectreIS):
     print(concordance_matrix)
 
     for i, j in combinations(range(num_alternatives), 2):
-        calculConcordanceMatrix(i, j, concordance_matrix, non_discordance_matrix, 0.75)
+        calculConcordanceMatrix(i, j, concordance_matrix, non_discordance_matrix, 0.6)
 
     if isElectreIS:
         # Classement
@@ -320,7 +366,6 @@ def electre(df, isElectreIS):
         result = pd.DataFrame(
             {'Voiture': alternatives})
         print("Electre IV :")
-
 
     print("Tableau de veto :")
     print(non_discordance_matrix)
