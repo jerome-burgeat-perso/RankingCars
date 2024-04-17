@@ -193,7 +193,7 @@ def calculateElectre(col, df, i, j, poids, preference_matrix, maximize):
 
 def calculateElectreIS(col, df, i, j, poids, thresholds, concordance_matrix, maximize):
     threshold = thresholds.get(col, 0)
-    print(col , i , j)
+    #print(col , i , j)
     concordance_matrix[i, j] += preference_functionElectreIs(
         df.iloc[i][col], df.iloc[j][col], poids[col], threshold, maximize=maximize
     )
@@ -227,14 +227,14 @@ def calculConcordanceMatrix(i, j, concordance_matrix, non_discordance_matrix, se
 
 
 def get_weights():
-    # poids = {"Prix": 0.1, "Vitesse_Max": 0.009, "Conso_Moy": 0.1, "Dis_Freinage": 0.5, "Confort": 0.2,
-    #          "Vol_Coffre": 0.09, "Acceleration": 0.001} # Personne prudente
-    # poids = {"Prix": 0.6, "Vitesse_Max": 0.063, "Conso_Moy": 0.2, "Dis_Freinage": 0.01, "Confort": 0.001,
-    #          "Vol_Coffre": 0.063, "Acceleration": 0.063} # Etudiant peu riche
-    # poids = {"Prix": 0.0125, "Vitesse_Max": 0.4, "Conso_Moy": 0.0125, "Dis_Freinage": 0.0125, "Confort": 0.2,
-    #          "Vol_Coffre": 0.0125, "Acceleration": 0.35} # riche
-    poids = {"Prix": 0.1, "Vitesse_Max": 0.02, "Conso_Moy": 0.08, "Dis_Freinage": 0.08, "Confort": 0.4,
-             "Vol_Coffre": 0.3, "Acceleration": 0.02}  # familial
+    #poids = {"Prix": 0.1, "Vitesse_Max": 0.009, "Conso_Moy": 0.1, "Dis_Freinage": 0.5, "Confort": 0.2,
+    #         "Vol_Coffre": 0.09, "Acceleration": 0.001} # Personne prudente
+    #poids = {"Prix": 0.6, "Vitesse_Max": 0.063, "Conso_Moy": 0.2, "Dis_Freinage": 0.01, "Confort": 0.001,
+    #         "Vol_Coffre": 0.063, "Acceleration": 0.063} # Etudiant peu riche
+    poids = {"Prix": 0.0125, "Vitesse_Max": 0.4, "Conso_Moy": 0.0125, "Dis_Freinage": 0.0125, "Confort": 0.2,
+             "Vol_Coffre": 0.0125, "Acceleration": 0.35} # riche
+    #poids = {"Prix": 0.1, "Vitesse_Max": 0.02, "Conso_Moy": 0.08, "Dis_Freinage": 0.08, "Confort": 0.4,
+    #         "Vol_Coffre": 0.3, "Acceleration": 0.02}  # familial
     # poids = {"C1": 0.1, "C2": 0.2, "C3": 0.2, "C4": 0.1, "C5": 0.2, "C6": 0.2}
     # Decommenter le code pour un profil different
     # for col in ["Prix", "Vitesse_Max", "Conso_Moy", "Dis_Freinage", "Confort", "Vol_Coffre", "Acceleration"]:
@@ -257,7 +257,9 @@ def get_vetos():
     return vetos
 
 def get_thresholds():
-    thresholds = {"C1": 20, "C2": 10, "C3": 200, "C4": 4, "C5": 2, "C6": 2}
+    #thresholds = {"C1": 20, "C2": 10, "C3": 200, "C4": 4, "C5": 2, "C6": 2}
+    thresholds = {"Prix": 1500, "Vitesse_Max": 10, "Conso_Moy": 0.8, "Dis_Freinage": 1.5, "Confort": 0.8,
+             "Vol_Coffre": 30, "Acceleration": 1.2}
     # Decommenter le code pour un profil different
     # for col in ["Prix", "Vitesse_Max", "Conso_Moy", "Dis_Freinage", "Confort", "Vol_Coffre", "Acceleration"]:
     #     threshold = float(input(f"Enter weight for {col}: "))
@@ -372,7 +374,39 @@ def electre(df, isElectreIS):
     print(non_discordance_matrix)
     print("Matrice de préférence :")
     print(concordance_matrix)
+    generate_surclassement_graph(df, concordance_matrix, non_discordance_matrix, 0.6)
     print(result)
+
+def generate_surclassement_graph(df, concordance_matrix, non_discordance_matrix, seuil_concordance):
+    G = nx.DiGraph()
+    alternatives = df['Voiture'].tolist()
+
+    # Assurez-vous que tous les nœuds sont ajoutés au graphe
+    for alternative in alternatives:
+        G.add_node(alternative)
+
+    num_alternatives = len(alternatives)
+    for i in range(num_alternatives):
+        for j in range(num_alternatives):
+            if i != j:  # Pas de boucles
+                # Vérifiez si l'alternative i surclasse l'alternative j
+                if concordance_matrix[i, j] >= seuil_concordance and non_discordance_matrix[i, j] == 1:
+                    G.add_edge(alternatives[i], alternatives[j])
+
+    pos = nx.spring_layout(G)  # positions for all nodes
+    nx.draw(G, pos, with_labels=True, node_size=7000, node_color='skyblue', font_size=10, font_weight='bold', arrowstyle='-|>', arrowsize=10)
+
+    # Créer les labels des arcs après la création du graphe pour éviter les KeyError
+    edge_labels = {(u, v): f'{concordance_matrix[alternatives.index(u), alternatives.index(v)]:.2f}'
+                   for u, v in G.edges()}
+
+    nx.draw_networkx_edge_labels(G, pos, edge_labels=edge_labels)
+
+    plt.title("Graphe de Surclassement")
+    plt.show()
+
+# Usage example, assuming that the matrices and dataframe have been defined
+# generate_surclassement_graph(df, concordance_matrix, non_discordance_matrix, 0.6)
 
 
 def generateGraphe(df):
